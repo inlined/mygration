@@ -91,3 +91,5 @@ captures/
 
 # Keystore files
 *.jks
+
+.parse.local
