@@ -25,37 +25,26 @@
 var _ = require('underscore');
 
 function classString(klass) {
-  if (typeof klass === "string") {
+  if (_.isString(klass)) {
     return klass;
   } else {
     return (new klass()).className;
   }
 }
 
-function def(symbol) {
-  return typeof(symbol) != "undefined";
-}
-
-// There is no fixed way to know a JS class, but this is a pretty good
-// test for Parse.Object since it's an internal method for resolving
-// save results.
-function isParseObject(obj) {
-  return typeof(obj) === "object" && def(obj._applyOpSet);
-}
-
 // Tests run under Node, which has a different import path than Cloud Code
 var IS_NODE = (typeof process !== 'undefined' &&
                !!process.versions &&
                !!process.versions.node &&
-               !process.version.electron)
+               !process.version.electron);
 var consts = IS_NODE ? require('./consts') : require('cloud/consts.js');
-var MAXIMUM_DURATION = 14.5 * 60 * 1000,
-    ThisIsNotAResponseObject =  {
+var MAXIMUM_DURATION = 14.5 * 60 * 1000;
+var ThisIsNotAResponseObject =  {
       success: function() {
         throw "The migration tool expects you to return promises, not use callbacks";
       },
       error: function() {
-        throw "The migration tool expecgts you to return promises, not use callbacks";
+        throw "The migration tool expects you to return promises, not use callbacks";
       }
     };
 
@@ -85,7 +74,7 @@ Migrator.prototype._registerFn = function(triggerType) {
   return function(klass, callback) {
     var key = classString(klass);
     var obj = self._triggers[key] || {};
-    if (def(obj[triggerType])) {
+    if (!_.isUndefined(obj[triggerType])) {
       throw "Already registered a " + triggerType + " trigger for " + klass;
     }
     obj[triggerType] = callback;
@@ -103,19 +92,19 @@ Migrator.prototype.handlers = function(klass) {
 Migrator.prototype.exportTriggers = function() {
   var self = this;
   _.each(this._triggers, function(handlers, klass) {
-    if (def(handlers.beforeSave) || def(handlers.migrateObject)) {
+    if (!_.isUndefined(handlers.beforeSave) || !_.isUndefined(handlers.migrateObject)) {
       self._parse.Cloud.beforeSave(klass, self.getBeforeSave(klass));
     }
 
-    if (def(handlers.afterSave) || def(handlers.migrateObject)) {
+    if (!_.isUndefined(handlers.afterSave) || !_.isUndefined(handlers.migrateObject)) {
       self._parse.Cloud.afterSave(klass, self.getAfterSave(klass));
     }
 
-    if (def(handlers.beforeDelete) || def(handlers.migrateDelete)) {
+    if (!_.isUndefined(handlers.beforeDelete) || !_.isUndefined(handlers.migrateDelete)) {
       self._parse.Cloud.beforeDelete(klass, self.getBeforeDelete(klass));
     }
 
-    if (def(handlers.afterDelete)) {
+    if (!_.isUndefined(handlers.afterDelete)) {
       self._parse.Cloud.afterDelete(klass, self.getAfterDelete(klass));
     }
   });
@@ -127,7 +116,8 @@ Migrator.prototype.getBeforeSave = function(klass) {
   var handlers = this.handlers(klass),
     beforeSave = handlers.beforeSave,
     migrate = handlers.migrateObject,
-    _Promise = this._parse.Promise;
+    _Parse = this._parse,
+    _Promise = _Parse.Promise;
 
   return function(request, response) {
     var obj;
@@ -135,7 +125,7 @@ Migrator.prototype.getBeforeSave = function(klass) {
     // a quick second pass to keep people from worrying about not having
     // an objectId in their migration.
     var changed = request.object.dirtyKeys();
-    var shouldBeforeSave = def(beforeSave) &&
+    var shouldBeforeSave = !_.isUndefined(beforeSave) &&
       !(changed.length === 1 && changed[0] == consts.MIGRATION_KEY);
 
     return _Promise.as().then(function() {
@@ -143,7 +133,7 @@ Migrator.prototype.getBeforeSave = function(klass) {
         return beforeSave(request, ThisIsNotAResponseObject);
       }
     }).then(function(maybeNew) {
-      obj = isParseObject(maybeNew) ? maybeNew : request.object;
+      obj = maybeNew instanceof _Parse.Object ? maybeNew : request.object;
 
       // Hybrid apps can explicitly opt-out.
       if (obj.get(consts.MIGRATION_KEY) == consts.IS_MIGRATED || !migrate) {
@@ -184,7 +174,7 @@ Migrator.prototype.getAfterSave = function(klass) {
     migrate = handlers.migrateObject,
     _Promise = this._parse.Promise,
     maybeTouch = function(obj) {
-      if (obj.existed() || !def(migrate)) {
+      if (obj.existed() || _.isUndefined(migrate)) {
         return _Promise.as();
       }
       obj.set(consts.MIGRATION_KEY, consts.NEEDS_SECOND_PASS);
@@ -193,7 +183,7 @@ Migrator.prototype.getAfterSave = function(klass) {
 
   return function(request) {
     // We don't have long and there is no failure mode. Let's do this in parallel:
-    return def(afterSave) ?
+    return !_.isUndefined(afterSave) ?
       _Promise.all([afterSave(request), maybeTouch(request.object)]) :
       maybeTouch(request.object);
     // Parse doesn't have a response object; returning an outer promise for testability.
@@ -237,7 +227,7 @@ Migrator.prototype.getImportJob = function() {
     console.log("Starting import pass");
     var totalMigrated = 0;
     _.each(self._triggers, function(handlers, klass) {
-      if (!def(handlers.migrateObject)) {
+      if (_.isUndefined(handlers.migrateObject)) {
         console.log(klass + " has no migration function; nothing to import");
         return;
       } else {
@@ -305,7 +295,8 @@ Migrator.prototype._migrateClass = function(klass, migration, deadline) {
     });
 
   }).then(function(migrated) {
-    // Recursion is the for loop of async.
+    // We know we've migrated everything when the last batch didn't hit our limit.
+    // Otherwise, recursion is the for loop of async.
     if (migrated == consts.BATCH_SIZE) {
       return self._migrateClass(klass, migration, deadline).then(function(accum) {
         return accum + migrated;
