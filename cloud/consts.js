@@ -16,18 +16,42 @@ module.exports = {
   // Key used to track the state machine for the migrator
   MIGRATION_KEY: "migrationStatus",
 
-  // The object is already migrated/is in a stable state
+  // The object is already migrated/is in a stable state. Objects which
+  // had an objectId at the time of thier last migration have this state.
   IS_MIGRATED: 1,
 
-  // Unfortuantely we cannot detect the changed fields in an afterSave
-  // trigger. Since we need to do a second pass to do migrations of new
-  // objects, this helps us avoid user-defined afterSave side effects
-  // happening twice. This is also a stable state but will get set to
-  // IS_MIGRATED if there are any other writes.
+  // Normally Migrator's generated cloud code runs the following steps:
+  // Parse beforeSave:
+  //   Migrator.beforeSave
+  //   Migrator.migrateObject
+  // Parse saves
+  // Parse afterSave:
+  //   Migrator.afterSave
+  //
+  // This path leaves migrationStatus as 1 (IS_MIGRATED).
+  // To ensure that Migrator.migrateObject can always provide an objectId,
+  // we do a special dance for new objects:
+  //
+  // Parse beforeSave #1 (no objectId):
+  //   Migrator.beforeSave
+  // Parse saves
+  // Parse afterSave #1
+  //   Migrator.afterSave
+  //   (set migrationStatus to NEEDS_SECOND_PASS and resave)
+  // Parse beforeSave #2 (with objectId):
+  //   Migrator.migrateObject
+  //   (set migrationStatus to FINISHED_SECOND_PASS)
+  // Parse saves
+  // Parse afterSave #2:
+  //   (do nothing)
+  //
+  // This means we can't guarantee whether migrateObject happens before
+  // or after afterSave. We choose to do this because it's the only way to
+  // avoid breaking code that depends on request.object.existed().
   FINISHED_SECOND_PASS: 2,
 
-  // Set in beforeSave after a new object is created. The exported afterSave
-  // sets this so we can do a new pass that only runs the migration script.
+  // A temporary state used to migrate newly created objects.
+  // See FINISHED_SECOND_PASS for full documentation.
   NEEDS_SECOND_PASS: 3,
 
   // The number of records that are queried at once in the migration job.

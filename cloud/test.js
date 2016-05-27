@@ -43,7 +43,7 @@ Parse.Cloud.httpRequest = function(opts) {
   });
 };
 
-var Migrator = require('./migrate');
+var Migrator = require('./migrator');
 var Firebase = require('./firebase-rest');
 var root = Firebase({
   url: config.firebase.url,

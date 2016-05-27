@@ -121,9 +121,10 @@ Migrator.prototype.getBeforeSave = function(klass) {
 
   return function(request, response) {
     var obj;
-    // Skip beforeSave if it doesn't exist (duh) but also if this is just
+    // Skip beforeSave if it doesn't exist or if this is just
     // a quick second pass to keep people from worrying about not having
-    // an objectId in their migration.
+    // an objectId in their migration. See consts.js for a full explanation
+    // of the state machine.
     var changed = request.object.dirtyKeys();
     var shouldBeforeSave = !_.isUndefined(beforeSave) &&
       !(changed.length === 1 && changed[0] === consts.MIGRATION_KEY);
@@ -146,7 +147,8 @@ Migrator.prototype.getBeforeSave = function(klass) {
         return obj;
       }
 
-      // won't save unless the migration succeeds.
+      // won't save unless the migration succeeds. The difference between
+      // these two state machines is explained in consts.js
       if (obj.get(consts.MIGRATION_KEY) === consts.NEEDS_SECOND_PASS) {
         obj.set(consts.MIGRATION_KEY, consts.FINISHED_SECOND_PASS);
       } else {

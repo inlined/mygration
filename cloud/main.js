@@ -33,7 +33,7 @@
 //
 // For this library to have any effect at all, you must end your main.js with migrator.exportTriggers(Parse);
 
-var migrator = require('cloud/migrate.js')(Parse);
+var migrator = require('cloud/migrator.js')(Parse);
 var ref = require('cloud/firebase-rest.js')({
   url: 'YOUR_FIREBASE_DATABASE_URL'
   key: 'YOUR_OPTIONAL_FIREBASE_DATABSE_KEY',
