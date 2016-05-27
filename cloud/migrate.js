@@ -126,7 +126,7 @@ Migrator.prototype.getBeforeSave = function(klass) {
     // an objectId in their migration.
     var changed = request.object.dirtyKeys();
     var shouldBeforeSave = !_.isUndefined(beforeSave) &&
-      !(changed.length === 1 && changed[0] == consts.MIGRATION_KEY);
+      !(changed.length === 1 && changed[0] === consts.MIGRATION_KEY);
 
     return _Promise.as().then(function() {
       if (shouldBeforeSave) {
@@ -136,7 +136,7 @@ Migrator.prototype.getBeforeSave = function(klass) {
       obj = maybeNew instanceof _Parse.Object ? maybeNew : request.object;
 
       // Hybrid apps can explicitly opt-out.
-      if (obj.get(consts.MIGRATION_KEY) == consts.IS_MIGRATED || !migrate) {
+      if (obj.get(consts.MIGRATION_KEY) === consts.IS_MIGRATED || !migrate) {
         return obj;
       }
 
@@ -146,8 +146,8 @@ Migrator.prototype.getBeforeSave = function(klass) {
         return obj;
       }
 
-       // won't save unless the migation succeeds.
-      if (obj.get(consts.MIGRATION_KEY) == consts.NEEDS_SECOND_PASS) {
+      // won't save unless the migration succeeds.
+      if (obj.get(consts.MIGRATION_KEY) === consts.NEEDS_SECOND_PASS) {
         obj.set(consts.MIGRATION_KEY, consts.FINISHED_SECOND_PASS);
       } else {
         obj.set(consts.MIGRATION_KEY, consts.IS_MIGRATED);
@@ -173,7 +173,8 @@ Migrator.prototype.getAfterSave = function(klass) {
     afterSave = handlers.afterSave,
     migrate = handlers.migrateObject,
     _Promise = this._parse.Promise,
-    maybeTouch = function(obj) {
+    maybeTouch = function(request) {
+      var obj = request.object;
       if (obj.existed() || _.isUndefined(migrate)) {
         return _Promise.as();
       }
@@ -181,12 +182,13 @@ Migrator.prototype.getAfterSave = function(klass) {
       return obj.save();
     }
 
+  if (_.isUndefined(afterSave)) {
+    return maybeTouch;
+  }
+
   return function(request) {
     // We don't have long and there is no failure mode. Let's do this in parallel:
-    return !_.isUndefined(afterSave) ?
-      _Promise.all([afterSave(request), maybeTouch(request.object)]) :
-      maybeTouch(request.object);
-    // Parse doesn't have a response object; returning an outer promise for testability.
+    return _Promise.all([afterSave(request), maybeTouch(request)]);
   }
 };
 
@@ -244,7 +246,7 @@ Migrator.prototype.getImportJob = function() {
       totalMigrated += migrated;
     }).then(function() {
       var message = "Done with an import pass";
-      if (totalMigrated == 0) {
+      if (totalMigrated === 0) {
         message = "Completed initial import!";
       }
       console.log(message);
@@ -278,7 +280,7 @@ Migrator.prototype._migrateClass = function(klass, migration, deadline) {
     ).limit(consts.BATCH_SIZE);
 
   // For each batch, map that batch to a migration of a single record and
-  // then setting that record's migation status to done. Then wait for
+  // then setting that record's migration status to done. Then wait for
   // that batch to complete before resolving the outer promise that lets
   // us fetch a new batch.
   return query.find().then(function(objects) {
@@ -297,7 +299,7 @@ Migrator.prototype._migrateClass = function(klass, migration, deadline) {
   }).then(function(migrated) {
     // We know we've migrated everything when the last batch didn't hit our limit.
     // Otherwise, recursion is the for loop of async.
-    if (migrated == consts.BATCH_SIZE) {
+    if (migrated === consts.BATCH_SIZE) {
       return self._migrateClass(klass, migration, deadline).then(function(accum) {
         return accum + migrated;
       });
