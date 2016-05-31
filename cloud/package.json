@@ -13,5 +13,6 @@
     "test": "mocha"
   },
   "author": "Thomas Bouldin",
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "private": true
 }

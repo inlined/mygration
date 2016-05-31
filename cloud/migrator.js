@@ -67,7 +67,7 @@ var Migrator = function(Parse) {
   this.migrateDelete = this._registerFn("migrateDelete");
 
   this._parse = Parse;
-}
+};
 
 Migrator.prototype._registerFn = function(triggerType) {
   var self = this;
@@ -80,11 +80,11 @@ Migrator.prototype._registerFn = function(triggerType) {
     obj[triggerType] = callback;
     self._triggers[key] = obj;
   }
-}
+};
 
 Migrator.prototype.handlers = function(klass) {
   return this._triggers[classString(klass)] || {};
-}
+};
 
 // exportTriggers exports all the necessary Parse Cloud Code.
 // The actual functions being registered are generated with getXYZ so we
@@ -219,7 +219,7 @@ Migrator.prototype.getAfterDelete = function(klass) {
   return function(request) {
     return _Promise.as().then(afterDelete);
   }
-}
+};
 
 Migrator.prototype.getImportJob = function() {
   var self = this,
