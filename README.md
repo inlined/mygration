@@ -28,9 +28,9 @@ Database. We offer two files to help you migrate from Parse:
 Imagine you have a `BlogPost` class in Parse with the following fields:
 
 * **title** *(String)* Name the post
-* **body** *(String)* Blog contets
+* **body** *(String)* Blog contents
 * **keywords** *(String)* Originally you chose to do text searches on a space separated list
-* **kewords_list** *(Array)* You realized later that Parse can search an array better and added Cloud Code to put **keywords** into **keywords_list**
+* **keywords_list** *(Array)* You realized later that Parse can search an array better and added Cloud Code to put **keywords** into **keywords_list**
 
 You probably have Cloud Code like:
 
@@ -71,8 +71,8 @@ A logical structure for your blog posts in Firebase might look like:
 
 A few things are noticeably different in this structure:
 
-1. We no longer use the legacy `"keywords"` array
-2. The values from `"keywords_list"` are stored in a different location so we can look up blogs related to a `"googleio"` by reading the keys under `"/keywords/googleio"`
+1. We no longer use the legacy `"keywords"` string. `"keywords"` in Firebase is the value of `"keywords_list"` in Parse.
+2. The values from `"keywords_list"` are stored in a different location so we can look up blogs related to a `"googleio"` by reading the keys under `"/keywords/googleio"`. We also have `"keywords"` inside the blog post. This lets us clean up a blog post by knowing all of its references under `"keywords"` and lets us display a blog post's keywords inline if we want.
 
 Migrator can help us do this very easily in 3 steps:
 
